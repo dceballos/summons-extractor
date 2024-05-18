@@ -1,7 +1,8 @@
 import os
 from flask import Flask, request, send_file, render_template, jsonify
 import tempfile
-import threading
+from concurrent.futures import ThreadPoolExecutor
+from queue import Queue
 from time import sleep
 from summons_extractor import convert_pdf_to_images, apply_ocr_to_images, identify_summons_page_range, create_pdf_with_summons
 
@@ -10,27 +11,38 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default-secret-key')
 
 # Shared state to store processing status
 processing_status = {}
+status_queue = Queue()
+
+executor = ThreadPoolExecutor(max_workers=4)
+
+def update_status(task_id, progress, file_ready=False, output_path=None):
+    status = {'progress': progress, 'file_ready': file_ready}
+    if output_path:
+        status['output_path'] = output_path
+    processing_status[task_id] = status
+    status_queue.put((task_id, status))
+    print(f"Updated status for task {task_id}: {status}")  # Debugging print statement
 
 def process_pdf(input_pdf_path, output_pdf_path, task_id):
     images = convert_pdf_to_images(input_pdf_path)
     num_pages = len(images)
     pages_text = []
 
-    for i in range(0, num_pages, 20):
-        chunk_images = images[i:i + 20]
+    for i in range(0, num_pages, 5):  # Process 5 pages at a time
+        chunk_images = images[i:i + 5]
         chunk_text = apply_ocr_to_images(chunk_images, i)
         pages_text.extend(chunk_text)
 
-        progress = int((i + 20) / num_pages * 100)
-        processing_status[task_id] = {'progress': progress}
+        progress = int((i + 5) / num_pages * 100)
+        update_status(task_id, progress)
 
         start_page, end_page = identify_summons_page_range(chunk_text)
         if start_page is not None and end_page is not None:
             create_pdf_with_summons(input_pdf_path, start_page, end_page, output_pdf_path)
-            processing_status[task_id] = {'progress': 100, 'file_ready': True, 'output_path': output_pdf_path}
+            update_status(task_id, 100, True, output_pdf_path)
             return
 
-    processing_status[task_id] = {'progress': 100, 'file_ready': True, 'output_path': output_pdf_path}
+    update_status(task_id, 100, True, output_pdf_path)
     print(f"Summons not found in the document: {input_pdf_path}")
 
 @app.route('/')
@@ -52,10 +64,9 @@ def upload_file():
             output_pdf_path = input_pdf_path.replace('.pdf', '-summons.pdf')
 
             # Initialize the processing status
-            processing_status[task_id] = {'progress': 0}
+            update_status(task_id, 0)
 
-            thread = threading.Thread(target=process_pdf, args=(input_pdf_path, output_pdf_path, task_id))
-            thread.start()
+            executor.submit(process_pdf, input_pdf_path, output_pdf_path, task_id)
 
             return jsonify({'message': 'File uploaded and processing started.', 'task_id': task_id})
 
