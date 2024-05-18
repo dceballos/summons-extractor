@@ -41,9 +41,11 @@ def identify_summons_page_range(pages_text):
         f"The idea is to identify the range of page numbers containing JUST the summons."
         f"You are to analyze what comes before and after to make sure you get all pages containing the summons text"
         f"The page containing the 'field sheet' should always be discarded from the final range as should the 'complaint'. given that the summons is usually anywhere in between,"
-        f"It is imperative to still provide a range of pages that have only the summons. always exclude the 'complaint' pages. We just want summon pages inclusively, including all disclaimers and law firm signatures."
+        f"It is imperative to provide just the range of pages that have the summons. always exclude the 'complaint' pages. Make sure to include all summons disclaimers and law firm signatures."
+        f"If this is not a legal document or summons, then use the null format below."
         f"Here is the legal document text:\n\n{combined_text}\n\n"
         f"Please provide the range in the format '{{\"start_page\": X, \"end_page\": Y}}' or '{{\"start_page\": X}}' if it's a single page."
+        f"If no summons pages are identified, please respond with '{{\"start_page\": null, \"end_page\": null}}'. "
     )
     response = client.chat.completions.create(model="gpt-3.5-turbo",
     messages=[
