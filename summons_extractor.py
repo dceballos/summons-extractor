@@ -29,7 +29,8 @@ def apply_ocr_to_images(images, start_page):
     for i, image in enumerate(images):
         page_num = start_page + i
         print(f"Applying OCR to page {page_num + 1}...")
-        text = pytesseract.image_to_string(image)
+        custom_config = r'--oem 3 --psm 3'
+        text = pytesseract.image_to_string(image, config=custom_config)
         pages_text.append((page_num, text))
     return pages_text
 
