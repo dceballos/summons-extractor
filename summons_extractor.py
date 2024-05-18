@@ -2,12 +2,11 @@ import fitz  # PyMuPDF
 import pytesseract
 from pdf2image import convert_from_path
 from openai import OpenAI
-
-client = OpenAI(api_key='sk-proj-IegKzcdzZNQlnuJjesPVT3BlbkFJ7EH8lN7JH017GEQLFeDw')
 import json
 import os
 
 # Configure the OpenAI API
+client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
 # Path to Tesseract executable (if it's not in your PATH)
 pytesseract.pytesseract.tesseract_cmd = r'/opt/homebrew/bin/tesseract'
