@@ -1,7 +1,3 @@
-Yes, let's include all the files and directories you mentioned in the project structure section of the README file. Here's the updated README.md:
-
-### README.md
-
 # Summons Extractor
 
 A Python-based application for extracting summons pages from legal PDF documents. This project includes both a command-line interface (CLI) and a web server application for processing PDF files and extracting the relevant pages containing the summons.
@@ -65,6 +61,13 @@ A Python-based application for extracting summons pages from legal PDF documents
         - Download and install Poppler for Windows from [Poppler for Windows](http://blog.alivate.com.au/poppler-windows/).
         - Add the Poppler installation path to your system's PATH environment variable.
 
+5. **Set the OpenAI API Key:**
+
+    ```bash
+    export OPENAI_API_KEY='your-openai-api-key'  # Linux/macOS
+    set OPENAI_API_KEY='your-openai-api-key'  # Windows
+    ```
+
 ## Usage
 
 ### Command-Line Interface (CLI)
@@ -99,58 +102,4 @@ A Python-based application for extracting summons pages from legal PDF documents
 
 ## Project Structure
 
-```
-summons-extractor/
-│
-├── Readme.md                # Project README file
-├── app.py                   # Main web server application
-├── myenv/                   # Virtual environment directory
-├── summons_cli.py           # Command-line interface script
-├── summons_extractor.py     # PDF processing and OCR functions
-├── __pycache__/             # Python cache files
-├── documents/               # Folder containing input PDF documents
-├── results/                 # Folder for storing output PDF documents
-├── templates/               # HTML templates for the web application
-│   └── upload.html          # HTML template for the web application
-└── static/
-    └── style.css            # CSS for the web application
-```
 
-## Summons Extractor Functions
-
-- **convert_pdf_to_images**: Converts a PDF document to images for OCR processing.
-- **apply_ocr_to_images**: Applies OCR to a list of images and extracts text.
-- **identify_summons_page_range**: Identifies the page range containing the summons.
-- **create_pdf_with_summons**: Creates a new PDF with only the summons pages.
-
-## Example Commands
-
-### Extract Summons Using CLI
-
-```bash
-python summons_cli.py documents/sample.pdf results/sample-summons.pdf
-```
-
-### Running the Web Server
-
-```bash
-python app.py
-```
-
-Open your browser and navigate to `http://127.0.0.1:5001/` to upload and process a PDF file.
-
-## Contributing
-
-1. Fork the repository.
-2. Create a new branch (`git checkout -b feature-branch`).
-3. Commit your changes (`git commit -am 'Add new feature'`).
-4. Push to the branch (`git push origin feature-branch`).
-5. Create a new Pull Request.
-
-## License
-
-This project is licensed under the MIT License.
-
----
-
-Feel free to update the repository URL and any other details specific to your project. This README provides clear instructions for installing, using, and contributing to the project.
