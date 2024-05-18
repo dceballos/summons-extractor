@@ -4,12 +4,19 @@ from pdf2image import convert_from_path
 from openai import OpenAI
 import json
 import os
+import platform
 
 # Configure the OpenAI API
 client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
 # Path to Tesseract executable (if it's not in your PATH)
-pytesseract.pytesseract.tesseract_cmd = r'/opt/homebrew/bin/tesseract'
+# Determine the path to the Tesseract executable based on the operating system
+if platform.system() == 'Windows':
+    pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+elif platform.system() == 'Darwin':  # macOS
+    pytesseract.pytesseract.tesseract_cmd = r'/opt/homebrew/bin/tesseract'
+else:  # Linux (including Heroku)
+    pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'
 
 def convert_pdf_to_images(pdf_path):
     print("Converting PDF to images...")
