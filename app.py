@@ -3,7 +3,6 @@ from flask import Flask, request, send_file, render_template, jsonify
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from queue import Queue
-from time import sleep
 from summons_extractor import convert_pdf_to_images, apply_ocr_to_images, identify_summons_page_range, create_pdf_with_summons
 
 app = Flask(__name__)
@@ -15,8 +14,11 @@ status_queue = Queue()
 
 executor = ThreadPoolExecutor(max_workers=4)
 
-def update_status(task_id, progress, file_ready=False, output_path=None):
-    status = {'progress': progress, 'file_ready': file_ready}
+# Global variable to control the number of pages processed at a time
+PAGES_PER_CHUNK = 20
+
+def update_status(task_id, progress, status_message, file_ready=False, output_path=None):
+    status = {'progress': progress, 'status_message': status_message, 'file_ready': file_ready}
     if output_path:
         status['output_path'] = output_path
     processing_status[task_id] = status
@@ -24,25 +26,27 @@ def update_status(task_id, progress, file_ready=False, output_path=None):
     print(f"Updated status for task {task_id}: {status}")  # Debugging print statement
 
 def process_pdf(input_pdf_path, output_pdf_path, task_id):
+    update_status(task_id, 0, "Converting PDF to images...")
     images = convert_pdf_to_images(input_pdf_path)
     num_pages = len(images)
     pages_text = []
 
-    for i in range(0, num_pages, 5):  # Process 5 pages at a time
-        chunk_images = images[i:i + 5]
+    for i in range(0, num_pages, PAGES_PER_CHUNK):  # Use the global variable
+        chunk_images = images[i:i + PAGES_PER_CHUNK]
+        update_status(task_id, int((i / num_pages) * 100), f"Applying OCR to pages {i+1}-{min(i+PAGES_PER_CHUNK, num_pages)}...")
         chunk_text = apply_ocr_to_images(chunk_images, i)
         pages_text.extend(chunk_text)
 
-        progress = int((i + 5) / num_pages * 100)
-        update_status(task_id, progress)
+        progress = int((i + PAGES_PER_CHUNK) / num_pages * 100)
+        update_status(task_id, progress, f"Processing pages {i+1}-{min(i+PAGES_PER_CHUNK, num_pages)}...")
 
         start_page, end_page = identify_summons_page_range(chunk_text)
         if start_page is not None and end_page is not None:
             create_pdf_with_summons(input_pdf_path, start_page, end_page, output_pdf_path)
-            update_status(task_id, 100, True, output_pdf_path)
+            update_status(task_id, 100, "Summons extracted and PDF created.", True, output_pdf_path)
             return
 
-    update_status(task_id, 100, True, output_pdf_path)
+    update_status(task_id, 100, "Summons not found. PDF processing completed.", True, output_pdf_path)
     print(f"Summons not found in the document: {input_pdf_path}")
 
 @app.route('/')
@@ -64,7 +68,7 @@ def upload_file():
             output_pdf_path = input_pdf_path.replace('.pdf', '-summons.pdf')
 
             # Initialize the processing status
-            update_status(task_id, 0)
+            update_status(task_id, 0, "Initializing...")
 
             executor.submit(process_pdf, input_pdf_path, output_pdf_path, task_id)
 
@@ -72,7 +76,7 @@ def upload_file():
 
 @app.route('/status/<task_id>', methods=['GET'])
 def check_status(task_id):
-    status = processing_status.get(task_id, {'progress': 0})
+    status = processing_status.get(task_id, {'progress': 0, 'status_message': 'Initializing...'})
     return jsonify(status)
 
 @app.route('/download', methods=['GET'])

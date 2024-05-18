@@ -21,6 +21,13 @@
             line-height: 30px;
             color: white;
         }
+        #status-container {
+            margin-top: 10px;
+        }
+        #download-link {
+            display: none;
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -32,9 +39,13 @@
     <div id="progress-bar-container">
         <div id="progress-bar">0%</div>
     </div>
+    <div id="status-container">Status: Initializing...</div>
+    <a id="download-link" href="#" download="summons.pdf">Download Summons PDF</a>
     <script>
         const form = document.getElementById('upload-form');
         const progressBar = document.getElementById('progress-bar');
+        const statusContainer = document.getElementById('status-container');
+        const downloadLink = document.getElementById('download-link');
 
         form.addEventListener('submit', function(e) {
             e.preventDefault();
@@ -60,35 +71,17 @@
                         const status = JSON.parse(xhr.responseText);
                         progressBar.style.width = status.progress + '%';
                         progressBar.textContent = status.progress + '%';
+                        statusContainer.textContent = 'Status: ' + status.status_message;
 
                         if (status.file_ready) {
                             clearInterval(interval);
-                            downloadFile(status.output_path);
+                            downloadLink.style.display = 'block';
+                            downloadLink.href = `/download?path=${encodeURIComponent(status.output_path)}`;
                         }
                     }
                 };
                 xhr.send();
             }, 1000);
-        }
-
-        function downloadFile(path) {
-            const xhr = new XMLHttpRequest();
-            xhr.open('GET', `/download?path=${encodeURIComponent(path)}`, true);
-            xhr.responseType = 'blob';
-            xhr.onload = function () {
-                if (xhr.status === 200) {
-                    const blob = new Blob([xhr.response], { type: 'application/pdf' });
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.style.display = 'none';
-                    a.href = url;
-                    a.download = 'summons.pdf';
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                }
-            };
-            xhr.send();
         }
     </script>
 </body>
