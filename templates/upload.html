@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload PDF</title>
+    <style>
+        #progress-bar-container {
+            width: 100%;
+            background-color: #f3f3f3;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        #progress-bar {
+            width: 0%;
+            height: 30px;
+            background-color: #4caf50;
+            border-radius: 5px;
+            text-align: center;
+            line-height: 30px;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>Upload PDF to Extract Summons</h1>
+    <form id="upload-form" action="/upload" method="post" enctype="multipart/form-data">
+        <input type="file" name="file" id="file">
+        <input type="submit" value="Upload">
+    </form>
+    <div id="progress-bar-container">
+        <div id="progress-bar">0%</div>
+    </div>
+    <script>
+        const form = document.getElementById('upload-form');
+        const progressBar = document.getElementById('progress-bar');
+
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(form);
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', form.action, true);
+            xhr.onload = function () {
+                if (xhr.status === 200) {
+                    const response = JSON.parse(xhr.responseText);
+                    console.log('File uploaded and processing started.');
+                    pollStatus(response.task_id);
+                }
+            };
+            xhr.send(formData);
+        });
+
+        function pollStatus(taskId) {
+            const interval = setInterval(function() {
+                const xhr = new XMLHttpRequest();
+                xhr.open('GET', `/status/${taskId}`, true);
+                xhr.onload = function () {
+                    if (xhr.status === 200) {
+                        const status = JSON.parse(xhr.responseText);
+                        progressBar.style.width = status.progress + '%';
+                        progressBar.textContent = status.progress + '%';
+
+                        if (status.file_ready) {
+                            clearInterval(interval);
+                            downloadFile(status.output_path);
+                        }
+                    }
+                };
+                xhr.send();
+            }, 1000);
+        }
+
+        function downloadFile(path) {
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', `/download?path=${encodeURIComponent(path)}`, true);
+            xhr.responseType = 'blob';
+            xhr.onload = function () {
+                if (xhr.status === 200) {
+                    const blob = new Blob([xhr.response], { type: 'application/pdf' });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = 'summons.pdf';
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                }
+            };
+            xhr.send();
+        }
+    </script>
+</body>
+</html>
+
