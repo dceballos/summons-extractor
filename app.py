@@ -4,6 +4,7 @@ import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from queue import Queue
 from summons_extractor import convert_pdf_to_images, apply_ocr_to_images, identify_summons_page_range, create_pdf_with_summons
+import subprocess
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default-secret-key')
@@ -27,14 +28,23 @@ def update_status(task_id, progress, status_message, file_ready=False, output_pa
 
 def process_pdf(input_pdf_path, output_pdf_path, task_id):
     update_status(task_id, 0, "Converting PDF to images...")
-    images = convert_pdf_to_images(input_pdf_path)
+    try:
+        images = convert_pdf_to_images(input_pdf_path)
+    except Exception as e:
+        update_status(task_id, 0, f"Error converting PDF to images: {e}")
+        return
+
     num_pages = len(images)
     pages_text = []
 
     for i in range(0, num_pages, PAGES_PER_CHUNK):  # Use the global variable
         chunk_images = images[i:i + PAGES_PER_CHUNK]
         update_status(task_id, int((i / num_pages) * 100), f"Applying OCR to pages {i+1}-{min(i+PAGES_PER_CHUNK, num_pages)}...")
-        chunk_text = apply_ocr_to_images(chunk_images, i)
+        try:
+            chunk_text = apply_ocr_to_images(chunk_images, i)
+        except Exception as e:
+            update_status(task_id, int((i / num_pages) * 100), f"Error applying OCR to pages {i+1}-{min(i+PAGES_PER_CHUNK, num_pages)}: {e}")
+            return
         pages_text.extend(chunk_text)
 
         progress = int((i + PAGES_PER_CHUNK) / num_pages * 100)
@@ -42,8 +52,11 @@ def process_pdf(input_pdf_path, output_pdf_path, task_id):
 
         start_page, end_page = identify_summons_page_range(chunk_text)
         if start_page is not None and end_page is not None:
-            create_pdf_with_summons(input_pdf_path, start_page, end_page, output_pdf_path)
-            update_status(task_id, 100, "Summons extracted and PDF created.", True, output_pdf_path)
+            try:
+                create_pdf_with_summons(input_pdf_path, start_page, end_page, output_pdf_path)
+                update_status(task_id, 100, "Summons extracted and PDF created.", True, output_pdf_path)
+            except Exception as e:
+                update_status(task_id, 100, f"Error creating PDF with summons: {e}", True)
             return
 
     update_status(task_id, 100, "Summons not found. PDF processing completed.", True, output_pdf_path)
@@ -86,6 +99,16 @@ def download_file():
         return send_file(path, as_attachment=True, download_name='summons.pdf')
     return 'File not found', 404
 
+@app.route('/check_tesseract', methods=['GET'])
+def check_tesseract():
+    try:
+        result = subprocess.run(['tesseract', '--version'], capture_output=True, text=True, check=True)
+        return jsonify({'status': 'success', 'output': result.stdout})
+    except subprocess.CalledProcessError as e:
+        return jsonify({'status': 'error', 'output': e.output, 'error': str(e)})
+    except FileNotFoundError as e:
+        return jsonify({'status': 'error', 'error': 'Tesseract not found'})
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5001)), debug=True)
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=True)
 
