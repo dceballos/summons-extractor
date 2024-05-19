@@ -28,12 +28,22 @@
             display: none;
             margin-top: 10px;
         }
+        #no-summons-message {
+            display: none;
+            margin-top: 10px;
+            color: red;
+        }
     </style>
 </head>
 <body>
     <h1>Upload PDF to Extract Summons</h1>
     <form id="upload-form" action="/upload" method="post" enctype="multipart/form-data">
-        <input type="file" name="file" id="file">
+        <input type="file" name="file" id="file" required>
+        <label for="model">Select Model:</label>
+        <select name="model" id="model">
+            <option value="gpt">GPT</option>
+            <option value="gemini">Gemini</option>
+        </select>
         <input type="submit" value="Upload">
     </form>
     <div id="progress-bar-container">
@@ -41,11 +51,13 @@
     </div>
     <div id="status-container">Status: Initializing...</div>
     <a id="download-link" href="#" download="summons.pdf">Download Summons PDF</a>
+    <div id="no-summons-message">No summons found in the document</div>
     <script>
         const form = document.getElementById('upload-form');
         const progressBar = document.getElementById('progress-bar');
         const statusContainer = document.getElementById('status-container');
         const downloadLink = document.getElementById('download-link');
+        const noSummonsMessage = document.getElementById('no-summons-message');
 
         form.addEventListener('submit', function(e) {
             e.preventDefault();
@@ -75,8 +87,14 @@
 
                         if (status.file_ready) {
                             clearInterval(interval);
-                            downloadLink.style.display = 'block';
-                            downloadLink.href = `/download?path=${encodeURIComponent(status.output_path)}`;
+                            if (status.no_summons_found) {
+                                noSummonsMessage.style.display = 'block';
+                                downloadLink.style.display = 'none';
+                            } else {
+                                downloadLink.style.display = 'block';
+                                downloadLink.href = `/download?path=${encodeURIComponent(status.output_path)}`;
+                                noSummonsMessage.style.display = 'none';
+                            }
                         }
                     }
                 };

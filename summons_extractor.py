@@ -67,8 +67,13 @@ def identify_summons_page_range_gpt(pages_text):
         json_str = summons_info[start_idx:end_idx]
         summons_range = json.loads(json_str)
 
-        start_page = summons_range['start'] - 1  # Convert to 0-based index
-        end_page = summons_range['end'] - 1  # Convert to 0-based index and keep it inclusive
+        # Check if 'start' and 'end' are null
+        if summons_range['start'] is None or summons_range['end'] is None:
+            return None, None
+
+        # Extract start and end pages, converting to 0-based index
+        start_page = summons_range['start'] - 1
+        end_page = summons_range['end'] - 1
         return start_page, end_page
     except (json.JSONDecodeError, KeyError, ValueError) as e:
         print(f"Error parsing summons range: {e}")
