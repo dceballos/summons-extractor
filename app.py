@@ -3,7 +3,7 @@ from flask import Flask, request, send_file, render_template, jsonify
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from queue import Queue
-from summons_extractor import convert_pdf_to_images, apply_ocr_to_images, identify_summons_page_range, create_pdf_with_summons
+from summons_extractor import convert_pdf_to_images, apply_ocr_to_images, identify_summons_page_range_gpt, create_pdf_with_summons
 import subprocess
 
 app = Flask(__name__)
@@ -50,7 +50,7 @@ def process_pdf(input_pdf_path, output_pdf_path, task_id):
         progress = int((i + PAGES_PER_CHUNK) / num_pages * 100)
         update_status(task_id, progress, f"Processing pages {i+1}-{min(i+PAGES_PER_CHUNK, num_pages)}...")
 
-        start_page, end_page = identify_summons_page_range(chunk_text)
+        start_page, end_page = identify_summons_page_range_gpt(chunk_text)
         if start_page is not None and end_page is not None:
             try:
                 create_pdf_with_summons(input_pdf_path, start_page, end_page, output_pdf_path)
