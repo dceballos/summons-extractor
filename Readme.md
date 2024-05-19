@@ -81,7 +81,7 @@ A Python-based application for extracting summons pages from legal PDF documents
     **Example:**
 
     ```bash
-    python summons_cli.py documents/sample.pdf results/sample-summons.pdf
+    python summons_cli.py documents/sample.pdf results/sample-summons.pdf gpt4
     ```
 
 ### Web Server Application
