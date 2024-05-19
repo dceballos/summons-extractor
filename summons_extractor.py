@@ -1,4 +1,5 @@
 import fitz  # PyMuPDF
+import requests
 import pytesseract
 from pdf2image import convert_from_path
 from openai import OpenAI
@@ -34,19 +35,24 @@ def apply_ocr_to_images(images, start_page):
         pages_text.append((page_num, text))
     return pages_text
 
+def model_prompt(combined_text):
+    return f"""
+    I'm going to provide you with the text content of pages from a legal document.
+    Please identify the pages that contain the 'Summons', including disclaimers and law firm signatures.
+    Return a JSON payload in the form of {{"start": x, "end": x}} where 'start' and 'end' correspond with the
+    page ranges (inclusively). If it's only 1 page, they should be the same. If there
+    is no summons or the document is not even a legal document, return null for
+    'start' and 'end'. 
+
+    Page Content:
+
+    {combined_text}
+    """
+
 def identify_summons_page_range(pages_text):
     combined_text = "\n".join([f"Page {page_num + 1}:\n{text}" for page_num, text in pages_text])
-    prompt = (
-        f"I'm going to give you text that contains legal documents, for which we only care about the summons"
-        f"The idea is to identify the range of page numbers containing JUST the summons."
-        f"You are to analyze what comes before and after to make sure you get all pages containing the summons text"
-        f"The page containing the 'field sheet' should always be discarded from the final range as should the 'complaint'. given that the summons is usually anywhere in between,"
-        f"It is imperative to provide just the range of pages that have the summons. always exclude the 'complaint' pages. Make sure to include all summons disclaimers and law firm signatures."
-        f"If this is not a legal document or summons, then use the null format below."
-        f"Here is the legal document text:\n\n{combined_text}\n\n"
-        f"Please provide the range in the format '{{\"start_page\": X, \"end_page\": Y}}' or '{{\"start_page\": X}}' if it's a single page."
-        f"If no summons pages are identified, please respond with '{{\"start_page\": null, \"end_page\": null}}'. "
-    )
+    prompt = model_prompt(combined_text)
+
     response = client.chat.completions.create(model="gpt-4-turbo",
     messages=[
         {"role": "system", "content": "You are a helpful assistant."},
@@ -64,31 +70,18 @@ def identify_summons_page_range(pages_text):
         json_str = summons_info[start_idx:end_idx]
         summons_range = json.loads(json_str)
 
-        start_page = summons_range['start_page'] - 1  # Convert to 0-based index
-        end_page = summons_range['end_page'] - 1  # Convert to 0-based index and keep it inclusive
+        start_page = summons_range['start'] - 1  # Convert to 0-based index
+        end_page = summons_range['end'] - 1  # Convert to 0-based index and keep it inclusive
         return start_page, end_page
     except (json.JSONDecodeError, KeyError, ValueError) as e:
         print(f"Error parsing summons range: {e}")
         return None, None
 
-def identify_summons_page_range_gemini(page_texts):
+def identify_summons_page_range_gemini(pages_text):
     """Identifies summons pages in a PDF using the Gemini API."""
+    combined_text = "\n".join([f"Page {page_num + 1}:\n{text}" for page_num, text in pages_text])
     api_url = "https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=AIzaSyCS8rmBkmsrsPMenPn-jkY6c8O3T58mr5o"
-
-    prompt = f"""
-    I'm going to provide you with the text content of pages from a legal document.
-    Please identify the pages that contain the 'Summons', including disclaimers and law firm signatures.
-    Return a JSON payload in the form of {{"start": x, "end": x}} where 'start' and 'end' correspond with the
-    page ranges (inclusively). If it's only 1 page, they should be the same. If there
-    is no summons or the document is not even a legal document, return null for
-    'start' and 'end'. 
-
-    *page break* means it's the end of a page
-
-    Page Content:
-
-    {"\n\n\n*page break*\n\n\n".join(page_texts[:20])}
-    """
+    prompt = model_prompt(combined_text)
 
     headers = {
         "Content-Type": "application/json",
@@ -98,7 +91,6 @@ def identify_summons_page_range_gemini(page_texts):
         "contents": [{ "parts": [{"text": prompt}]}]
     }
 
-    print(prompt)
     response = requests.post(api_url, headers=headers, json=data)
 
     print(response.text)
