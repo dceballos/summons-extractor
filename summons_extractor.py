@@ -11,7 +11,6 @@ import platform
 client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
 # Path to Tesseract executable (if it's not in your PATH)
-# Determine the path to the Tesseract executable based on the operating system
 if platform.system() == 'Windows':
     pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 elif platform.system() == 'Darwin':  # macOS
@@ -49,7 +48,7 @@ def model_prompt(combined_text):
     {combined_text}
     """
 
-def identify_summons_page_range(pages_text):
+def identify_summons_page_range_gpt(pages_text):
     combined_text = "\n".join([f"Page {page_num + 1}:\n{text}" for page_num, text in pages_text])
     prompt = model_prompt(combined_text)
 
@@ -62,9 +61,7 @@ def identify_summons_page_range(pages_text):
     summons_info = response.choices[0].message.content.strip()
     print(f"Summons Info: {summons_info}")  # Debugging print statement
 
-    # Extract page numbers range from the JSON response
     try:
-        # Extract JSON from the response
         start_idx = summons_info.find("{")
         end_idx = summons_info.rfind("}") + 1
         json_str = summons_info[start_idx:end_idx]
@@ -78,9 +75,9 @@ def identify_summons_page_range(pages_text):
         return None, None
 
 def identify_summons_page_range_gemini(pages_text):
-    """Identifies summons pages in a PDF using the Gemini API."""
+    api_key=os.getenv('GEMINI_API_KEY')
+    api_url = f"https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key={api_key}"
     combined_text = "\n".join([f"Page {page_num + 1}:\n{text}" for page_num, text in pages_text])
-    api_url = "https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=AIzaSyCS8rmBkmsrsPMenPn-jkY6c8O3T58mr5o"
     prompt = model_prompt(combined_text)
 
     headers = {
@@ -101,7 +98,6 @@ def identify_summons_page_range_gemini(pages_text):
     else:
         raise Exception(f"Gemini API request failed with status code: {response.status_code}")
 
-
 def create_pdf_with_summons(original_pdf_path, start_page, end_page, output_pdf_path):
     document = fitz.open(original_pdf_path)
     new_doc = fitz.open()
@@ -119,7 +115,7 @@ def create_pdf_with_summons(original_pdf_path, start_page, end_page, output_pdf_
     else:
         print("No pages were added to the new document.")
 
-def process_document(input_pdf_path, output_pdf_path):
+def process_document(input_pdf_path, output_pdf_path, model="gpt"):
     images = convert_pdf_to_images(input_pdf_path)
     num_pages = len(images)
     pages_text = []
@@ -129,10 +125,20 @@ def process_document(input_pdf_path, output_pdf_path):
         chunk_text = apply_ocr_to_images(chunk_images, i)
         pages_text.extend(chunk_text)
 
-        start_page, end_page = identify_summons_page_range(chunk_text)
+        if model == "gpt":
+            start_page, end_page = identify_summons_page_range_gpt(chunk_text)
+        elif model == "gemini":
+            start_page, end_page = identify_summons_page_range_gemini(chunk_text)
+        else:
+            print(f"Unknown model: {model}")
+            return
+
         if start_page is not None and end_page is not None:
             create_pdf_with_summons(input_pdf_path, start_page, end_page, output_pdf_path)
             return  # Exit the loop and return the document immediately
 
     print(f"Summons not found in the document: {input_pdf_path}")
+
+# Example usage:
+# process_document("input.pdf", "output.pdf", model="gemini")
 
