@@ -47,7 +47,7 @@ def identify_summons_page_range(pages_text):
         f"Please provide the range in the format '{{\"start_page\": X, \"end_page\": Y}}' or '{{\"start_page\": X}}' if it's a single page."
         f"If no summons pages are identified, please respond with '{{\"start_page\": null, \"end_page\": null}}'. "
     )
-    response = client.chat.completions.create(model="gpt-3.5-turbo",
+    response = client.chat.completions.create(model="gpt-4-turbo",
     messages=[
         {"role": "system", "content": "You are a helpful assistant."},
         {"role": "user", "content": prompt}
@@ -70,6 +70,45 @@ def identify_summons_page_range(pages_text):
     except (json.JSONDecodeError, KeyError, ValueError) as e:
         print(f"Error parsing summons range: {e}")
         return None, None
+
+def identify_summons_page_range_gemini(page_texts):
+    """Identifies summons pages in a PDF using the Gemini API."""
+    api_url = "https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=AIzaSyCS8rmBkmsrsPMenPn-jkY6c8O3T58mr5o"
+
+    prompt = f"""
+    I'm going to provide you with the text content of pages from a legal document.
+    Please identify the pages that contain the 'Summons', including disclaimers and law firm signatures.
+    Return a JSON payload in the form of {{"start": x, "end": x}} where 'start' and 'end' correspond with the
+    page ranges (inclusively). If it's only 1 page, they should be the same. If there
+    is no summons or the document is not even a legal document, return null for
+    'start' and 'end'. 
+
+    *page break* means it's the end of a page
+
+    Page Content:
+
+    {"\n\n\n*page break*\n\n\n".join(page_texts[:20])}
+    """
+
+    headers = {
+        "Content-Type": "application/json",
+    }
+
+    data = {
+        "contents": [{ "parts": [{"text": prompt}]}]
+    }
+
+    print(prompt)
+    response = requests.post(api_url, headers=headers, json=data)
+
+    print(response.text)
+    if response.status_code == 200:
+        result = response.json()
+        r = json.loads(result["candidates"][0]["content"]["parts"][0]["text"])
+        return r["start"] - 1, r["end"] - 1
+    else:
+        raise Exception(f"Gemini API request failed with status code: {response.status_code}")
+
 
 def create_pdf_with_summons(original_pdf_path, start_page, end_page, output_pdf_path):
     document = fitz.open(original_pdf_path)
