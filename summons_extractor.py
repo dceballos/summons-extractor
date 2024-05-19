@@ -99,6 +99,8 @@ def identify_summons_page_range_gemini(pages_text):
     if response.status_code == 200:
         result = response.json()
         r = json.loads(result["candidates"][0]["content"]["parts"][0]["text"])
+        if r['start'] is None or r['end'] is None:
+            return None, None
         return r["start"] - 1, r["end"] - 1
     else:
         raise Exception(f"Gemini API request failed with status code: {response.status_code}")

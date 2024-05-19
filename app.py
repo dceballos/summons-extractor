@@ -54,22 +54,17 @@ def process_pdf(input_pdf_path, output_pdf_path, task_id, model):
         update_status(task_id, progress, f"Processing pages {i+1}-{min(i+PAGES_PER_CHUNK, num_pages)}...")
 
         start_page, end_page = None, None
-        print("before model")
         if model == "gpt":
-            print("running gpt")
             start_page, end_page = identify_summons_page_range_gpt(chunk_text)
         elif model == "gemini":
-            print("running gemini")
             start_page, end_page = identify_summons_page_range_gemini(chunk_text)
         else:
             update_status(task_id, progress, f"Unknown model: {model}")
             return
 
         if start_page is not None and end_page is not None:
-            print("creating pdf")
             try:
                 create_pdf_with_summons(input_pdf_path, start_page, end_page, output_pdf_path)
-                print("summons extracted")
                 update_status(task_id, 100, "Summons extracted and PDF created.", True, output_pdf_path)
             except Exception as e:
                 update_status(task_id, 100, f"Error creating PDF with summons: {e}", True)
