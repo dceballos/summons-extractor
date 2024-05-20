@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from queue import Queue
 from summons_extractor import process_document, convert_pdf_to_images, apply_ocr_to_images, identify_summons_page_range_gpt, identify_summons_page_range_gemini, create_pdf_with_summons
 import subprocess
+import sys
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default-secret-key')
@@ -28,6 +29,8 @@ def update_status(task_id, progress, status_message, file_ready=False, output_pa
         status['output_path'] = output_path
     processing_status[task_id] = status
     print(f"Updated status for task {task_id}: {status}")  # Debugging print statement
+    # Flush to ensure immediate output
+    sys.stdout.flush()
 
 def process_pdf(input_pdf_path, output_pdf_path, task_id, model):
     update_status(task_id, 0, "Converting PDF to images...")
@@ -43,21 +46,25 @@ def process_pdf(input_pdf_path, output_pdf_path, task_id, model):
     for i in range(0, num_pages, PAGES_PER_CHUNK):
         chunk_images = images[i:i + PAGES_PER_CHUNK]
         update_status(task_id, int((i / num_pages) * 100), f"Applying OCR to pages {i+1}-{min(i+PAGES_PER_CHUNK, num_pages)}...")
-        try:
-            chunk_text = apply_ocr_to_images(chunk_images, i)
-        except Exception as e:
-            update_status(task_id, int((i / num_pages) * 100), f"Error applying OCR to pages {i+1}-{min(i+PAGES_PER_CHUNK, num_pages)}: {e}")
-            return
-        pages_text.extend(chunk_text)
+        
+        for j in range(0, len(chunk_images), 1):
+            try:
+                print(f"before apply ocr for {j}")
+                chunk_text = apply_ocr_to_images([chunk_images[j]], i+j)
+            except Exception as e:
+                print(f"error #{e}")
+                update_status(task_id, int((i / num_pages) * 100), f"Error applying OCR to pages {i+1}-{min(i+PAGES_PER_CHUNK, num_pages)}: {e}")
+                return
+            pages_text.extend(chunk_text)
 
-        progress = int((i + PAGES_PER_CHUNK) / num_pages * 100)
-        update_status(task_id, progress, f"Processing pages {i+1}-{min(i+PAGES_PER_CHUNK, num_pages)}...")
+            progress = int(((i+j)  / num_pages * 100))
+            update_status(task_id, progress, f"Processing pages {i+1}-{min(i+PAGES_PER_CHUNK, num_pages)}...")
 
         start_page, end_page = None, None
         if model == "gpt":
-            start_page, end_page = identify_summons_page_range_gpt(chunk_text)
+            start_page, end_page = identify_summons_page_range_gpt(pages_text)
         elif model == "gemini":
-            start_page, end_page = identify_summons_page_range_gemini(chunk_text)
+            start_page, end_page = identify_summons_page_range_gemini(pages_text)
         else:
             update_status(task_id, progress, f"Unknown model: {model}")
             return
