@@ -68,6 +68,14 @@ A Python-based application for extracting summons pages from legal PDF documents
     set OPENAI_API_KEY='your-openai-api-key'  # Windows
     ```
 
+6. **Set the Google Gemini API Key:**
+
+    ```bash
+    export GEMINI_API_KEY='your-gemini-api-key'  # Linux/macOS
+    set GEMINI_API_KEY='your-gemini-api-key'  # Windows
+    ```
+
+
 ## Usage
 
 ### Command-Line Interface (CLI)
