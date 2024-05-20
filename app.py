@@ -6,12 +6,14 @@ from queue import Queue
 from summons_extractor import process_document, convert_pdf_to_images, apply_ocr_to_images, identify_summons_page_range_gpt, identify_summons_page_range_gemini, create_pdf_with_summons
 import subprocess
 import sys
+import threading
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default-secret-key')
 
 # Shared state to store processing status
 processing_status = {}
+status_lock = threading.Lock()
 
 executor = ThreadPoolExecutor(max_workers=4)
 
@@ -27,8 +29,14 @@ def update_status(task_id, progress, status_message, file_ready=False, output_pa
     }
     if output_path:
         status['output_path'] = output_path
+    with status_lock:
+        processing_status[task_id] = status
     processing_status[task_id] = status
     print(f"Updated status for task {task_id}: {status}")  # Debugging print statement
+
+def get_status(task_id):
+    with status_lock:
+        return processing_status.get(task_id, {'progress': 0, 'status_message': 'Initializing...'})
 
 def process_pdf(input_pdf_path, output_pdf_path, task_id, model):
     update_status(task_id, 0, "Converting PDF to images...")
@@ -105,7 +113,7 @@ def upload_file():
 
 @app.route('/status/<task_id>', methods=['GET'])
 def check_status(task_id):
-    status = processing_status.get(task_id, {'progress': 0, 'status_message': 'Initializing...'})
+    status = get_status(task_id)
     print(f"Showing status Task ID: {task_id} Status: {status}")
     return jsonify(status)
 
