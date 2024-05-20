@@ -108,6 +108,5 @@ A Python-based application for extracting summons pages from legal PDF documents
 
 3. **Upload a PDF file and observe the progress. The processed PDF will be available for download once the processing is complete.**
 
-## Project Structure
 
 
