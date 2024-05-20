@@ -37,10 +37,12 @@ def apply_ocr_to_images(images, start_page):
 def model_prompt(combined_text):
     return f"""
     I'm going to provide you with the text content of pages from a legal document.
-    Please identify the pages that contain the 'Summons', including disclaimers and law firm signatures.
+    Please identify the pages that contain the 'Summons', including disclaimers and law firm signatures. We are interested
+    In just the pages containing the summons.
+    Always ignore the Field Sheet which is usually in the first page. We just want the summons section of the document.
     Return a JSON payload in the form of {{"start": x, "end": x}} where 'start' and 'end' correspond with the
     page ranges (inclusively). If it's only 1 page, they should be the same. If there
-    is no summons or the document is not even a legal document, return null for
+    is no summons or the document is not a legal document, return null for
     'start' and 'end'. 
 
     Page Content:
