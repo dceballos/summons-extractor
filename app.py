@@ -7,6 +7,7 @@ from summons_extractor import process_document, convert_pdf_to_images, apply_ocr
 import subprocess
 import sys
 import threading
+import time
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default-secret-key')
@@ -31,12 +32,13 @@ def update_status(task_id, progress, status_message, file_ready=False, output_pa
         status['output_path'] = output_path
     with status_lock:
         processing_status[task_id] = status
-    processing_status[task_id] = status
-    print(f"Updated status for task {task_id}: {status}")  # Debugging print statement
+    print(f"{time.time()} - Updated status for task {task_id}: {status}")  # Debugging print statement
 
 def get_status(task_id):
     with status_lock:
-        return processing_status.get(task_id, {'progress': 0, 'status_message': 'Initializing...'})
+        status = processing_status.get(task_id, {'progress': 0, 'status_message': 'Initializing...'})
+    print(f"{time.time()} - Retrieved status for task {task_id}: {status}")  # Debugging print statement
+    return status
 
 def process_pdf(input_pdf_path, output_pdf_path, task_id, model):
     update_status(task_id, 0, "Converting PDF to images...")
@@ -114,7 +116,7 @@ def upload_file():
 @app.route('/status/<task_id>', methods=['GET'])
 def check_status(task_id):
     status = get_status(task_id)
-    print(f"Showing status Task ID: {task_id} Status: {status}")
+    print(f"{time.time()} - Showing status for task {task_id}: {status}")  # Debugging print statement
     return jsonify(status)
 
 @app.route('/download', methods=['GET'])
