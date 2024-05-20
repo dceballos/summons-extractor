@@ -29,8 +29,6 @@ def update_status(task_id, progress, status_message, file_ready=False, output_pa
         status['output_path'] = output_path
     processing_status[task_id] = status
     print(f"Updated status for task {task_id}: {status}")  # Debugging print statement
-    # Flush to ensure immediate output
-    sys.stdout.flush()
 
 def process_pdf(input_pdf_path, output_pdf_path, task_id, model):
     update_status(task_id, 0, "Converting PDF to images...")
@@ -49,10 +47,9 @@ def process_pdf(input_pdf_path, output_pdf_path, task_id, model):
         
         for j in range(0, len(chunk_images), 1):
             try:
-                print(f"before apply ocr for {j}")
-                chunk_text = apply_ocr_to_images([chunk_images[j]], i+j)
+                chunk_text = apply_ocr_to_images([chunk_images[j]], i + j)
             except Exception as e:
-                print(f"error #{e}")
+                print(f"Error #{e}")
                 update_status(task_id, int((i / num_pages) * 100), f"Error applying OCR to pages {i+1}-{min(i+PAGES_PER_CHUNK, num_pages)}: {e}")
                 return
             pages_text.extend(chunk_text)
@@ -108,7 +105,8 @@ def upload_file():
 
 @app.route('/status/<task_id>', methods=['GET'])
 def check_status(task_id):
-    status = processing_status.get(task_id, {'progress': 0, 'status_message': 'Initializing...'})
+    status = processing_status.get(task_id, {})
+    #status = processing_status.get(task_id, {'progress': 0, 'status_message': 'Initializing...'})
     return jsonify(status)
 
 @app.route('/download', methods=['GET'])
