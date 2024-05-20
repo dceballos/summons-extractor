@@ -67,7 +67,7 @@ def process_pdf(input_pdf_path, output_pdf_path, task_id, model):
             pages_text.extend(chunk_text)
 
             progress = int(((i+j)  / num_pages * 100))
-            update_status(task_id, progress, f"Processing pages {i+1}-{min(i+PAGES_PER_CHUNK, num_pages)}...")
+            update_status(task_id, progress, f"Processing page {i+j+1} of {num_pages}...")
 
         start_page, end_page = None, None
         if model == "gpt":

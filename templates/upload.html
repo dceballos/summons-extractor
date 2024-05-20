@@ -49,7 +49,7 @@
     <div id="progress-bar-container">
         <div id="progress-bar">0%</div>
     </div>
-    <div id="status-container">Status: Initializing...</div>
+    <div id="status-container">Status: Ready</div>
     <a id="download-link" href="#" download="summons.pdf">Download Summons PDF</a>
     <div id="no-summons-message">No summons found in the document</div>
     <script>
@@ -60,6 +60,7 @@
         const noSummonsMessage = document.getElementById('no-summons-message');
 
         form.addEventListener('submit', function(e) {
+            downloadLink.style.display = 'none';
             e.preventDefault();
             const formData = new FormData(form);
             const xhr = new XMLHttpRequest();
