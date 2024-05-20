@@ -106,7 +106,7 @@ def upload_file():
 @app.route('/status/<task_id>', methods=['GET'])
 def check_status(task_id):
     status = processing_status.get(task_id, {'progress': 0, 'status_message': 'Initializing...'})
-    print(status)
+    print(f"Showing status Task ID: {task_id} Status: {status}")
     return jsonify(status)
 
 @app.route('/download', methods=['GET'])
