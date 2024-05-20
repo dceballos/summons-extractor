@@ -1,20 +1,20 @@
 import os
-from flask import Flask, request, send_file, render_template, jsonify
+import json
 import tempfile
-from concurrent.futures import ThreadPoolExecutor
-from queue import Queue
-from summons_extractor import process_document, convert_pdf_to_images, apply_ocr_to_images, identify_summons_page_range_gpt, identify_summons_page_range_gemini, create_pdf_with_summons
 import subprocess
 import sys
-import threading
 import time
+from flask import Flask, request, send_file, render_template, jsonify
+from concurrent.futures import ThreadPoolExecutor
+from flask_redis import FlaskRedis
+from summons_extractor import process_document, convert_pdf_to_images, apply_ocr_to_images, identify_summons_page_range_gpt, identify_summons_page_range_gemini, create_pdf_with_summons
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default-secret-key')
+app.config['REDIS_URL'] = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
 
-# Shared state to store processing status
-processing_status = {}
-status_lock = threading.Lock()
+# Initialize Redis
+redis_client = FlaskRedis(app)
 
 executor = ThreadPoolExecutor(max_workers=4)
 
@@ -30,13 +30,15 @@ def update_status(task_id, progress, status_message, file_ready=False, output_pa
     }
     if output_path:
         status['output_path'] = output_path
-    with status_lock:
-        processing_status[task_id] = status
+    redis_client.set(task_id, json.dumps(status))  # Serialize to JSON string
     print(f"{time.time()} - Updated status for task {task_id}: {status}")  # Debugging print statement
 
 def get_status(task_id):
-    with status_lock:
-        status = processing_status.get(task_id, {'progress': 0, 'status_message': 'Initializing...'})
+    status_json = redis_client.get(task_id)
+    if status_json is None:
+        status = {'progress': 0, 'status_message': 'Initializing...'}
+    else:
+        status = json.loads(status_json)  # Deserialize JSON string
     print(f"{time.time()} - Retrieved status for task {task_id}: {status}")  # Debugging print statement
     return status
 
